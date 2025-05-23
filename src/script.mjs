@@ -1,26 +1,46 @@
 const COLORS = {
-  building: "#51516b", // gris sombre
-  // road: "#34495e", // bleu-gris foncé pour routes
+  building: "#51516b",
   road: "#ffe100",
-  forest: "#90c37f", // vert forêt
-  water: "#6bc7e4", // bleu clair
-  park: "#bfe5bf", // vert plus clair
+  forest: "#90c37f",
+  water: "#6bc7e4",
+  park: "#bfe5bf",
   default: "#cccccc",
 };
 
-const MULHOUSE_CENTER = { lon: 7.3359, lat: 47.7508 };
-const SCALE = 9000;
-
+let MAP_CENTER = { lon: 0, lat: 0 };
+let SCALE = 9000;
 const scene = document.querySelector("a-scene");
 
+// Calcule le centre de la bounding box du GeoJSON
+function computeGeoJSONCenter(geojson) {
+  let minLat = Infinity, minLon = Infinity, maxLat = -Infinity, maxLon = -Infinity;
+  geojson.features.forEach(feature => {
+    const geom = feature.geometry;
+    let coords = [];
+    if (geom.type === "Polygon") coords = geom.coordinates[0];
+    else if (geom.type === "MultiPolygon") coords = geom.coordinates.flat(2);
+    else if (geom.type === "LineString") coords = geom.coordinates;
+    coords.forEach(([lon, lat]) => {
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+    });
+  });
+  return {
+    lat: (minLat + maxLat) / 2,
+    lon: (minLon + maxLon) / 2
+  };
+}
+
 function lonLatToXY(lon, lat) {
-  const x = (lon - MULHOUSE_CENTER.lon) * SCALE;
-  const y = (lat - MULHOUSE_CENTER.lat) * SCALE;
+  const x = (lon - MAP_CENTER.lon) * SCALE;
+  const y = (lat - MAP_CENTER.lat) * SCALE;
   return [x, y];
 }
 
 function createPolygonEntity(vertices, height = 0.1, color = "#cccccc") {
-  if (!vertices || vertices.length < 3) return; // sécurité pour éviter les erreurs
+  if (!vertices || vertices.length < 3) return;
   const entity = document.createElement("a-entity");
   entity.setAttribute("geometry", {
     primitive: "map-item",
@@ -32,7 +52,6 @@ function createPolygonEntity(vertices, height = 0.1, color = "#cccccc") {
 }
 
 function handlePolygon(coords, height, color) {
-  // coords doit être un tableau de points [[lon, lat], ...]
   if (Array.isArray(coords) && Array.isArray(coords[0])) {
     const vertices = coords.map(([lon, lat]) => {
       const [x, y] = lonLatToXY(lon, lat);
@@ -46,7 +65,6 @@ function handleGeoJSONFeature(feature) {
   const tags = feature.properties || {};
   const geom = feature.geometry;
 
-  // --- ROUTES ---
   if (geom.type === "LineString" && tags.highway) {
     const points = geom.coordinates.map(([lon, lat]) => {
       const [x, y] = lonLatToXY(lon, lat);
@@ -61,10 +79,8 @@ function handleGeoJSONFeature(feature) {
     return;
   }
 
-  // --- MULTIPOLYGONS (forêts, plans d'eau, grands bâtiments, etc.) ---
   if (geom.type === "MultiPolygon") {
     geom.coordinates.forEach((polygon) => {
-      // Chaque polygon est [ [ [lon,lat], ... ] ] (un anneau principal, parfois d'autres pour trous)
       if (Array.isArray(polygon[0])) {
         handlePolygon(polygon[0], detectHeight(tags), detectColor(tags));
       }
@@ -72,7 +88,6 @@ function handleGeoJSONFeature(feature) {
     return;
   }
 
-  // --- POLYGONES ---
   if (geom.type === "Polygon") {
     const coords = geom.coordinates[0];
     handlePolygon(coords, detectHeight(tags), detectColor(tags));
@@ -81,7 +96,6 @@ function handleGeoJSONFeature(feature) {
 }
 
 function detectColor(tags) {
-  // Couleur selon la nature du polygone
   if (tags.building) return COLORS.building;
   if (
     (tags.landuse &&
@@ -111,7 +125,7 @@ function detectColor(tags) {
 }
 
 function detectHeight(tags) {
-  if (tags.building) return 1; // Essayez 1 ou même 0.7 selon votre préférence
+  if (tags.building) return 1;
   if (
     (tags.landuse &&
       (tags.landuse === "forest" ||
@@ -129,16 +143,27 @@ function detectHeight(tags) {
   ) {
     return 0.1;
   }
-  return 0.05; // hauteur par défaut
+  return 0.05;
 }
 
-// Charger le GeoJSON (placé dans /public)
+// CHARGEMENT DU GEOJSON ET CENTRAGE DYNAMIQUE
 fetch("/porteJeune.geojson")
   .then((res) => res.json())
   .then((geojson) => {
+    // Calcule le centre de la carte
+    MAP_CENTER = computeGeoJSONCenter(geojson);
     geojson.features.forEach((feature) => {
       handleGeoJSONFeature(feature);
     });
+
+    // Centrage automatique caméra (si tu veux vraiment auto-adapter !)
+    const cam = document.getElementById("mainCam");
+    if (cam) {
+      const y = 50 * span;
+      const z = -120 * span;
+      cam.setAttribute("position", `0 ${y} ${z}`);
+      cam.setAttribute("orbit-controls", `target: 0 0 0; initialPosition: 0 ${y} ${z}; minDistance: 2; maxDistance: 3000`);
+    }
 
     // 1. Récupère toutes les routes (LineString + highway)
     const highways = geojson.features.filter(

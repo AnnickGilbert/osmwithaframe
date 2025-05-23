@@ -21,6 +21,209 @@
         width: 100vw;
         height: 100vh;
       }
+      #controlPanel, #vehicleTable {
+        background: #fff;
+        padding: 18px 22px;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        min-width: 320px;
+        z-index: 100;
+      }
+      #vehicleTable {
+        top: 600px;
+      }
+      .form-group {
+        margin-bottom: 12px;
+      }
+      label {
+        display: block;
+        font-size: 0.99em;
+        margin-bottom: 2px;
+      }
+      input[type="number"] {
+        width: 80px;
+        padding: 3px 7px;
+        margin-left: 5px;
+      }
+      button {
+        padding: 5px 16px;
+        font-size: 1em;
+        margin-right: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: #38bdf8;
+        color: #fff;
+        cursor: pointer;
+      }
+      button#closeControlBtn {
+        background-color: #ef4444;
+      }
+      #vehicleTable table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      #vehicleTable th, #vehicleTable td {
+        border: 1px solid #ddd;
+        padding: 6px 8px;
+        text-align: center;
+      }
+      #vehicleTable th {
+        background: #f3f4f6;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- PANNEAU DE CONTROLE VEHICULES -->
+    <div id="controlPanel">
+      <h3>Paramètres des véhicules</h3>
+      <div class="form-group">
+        <label for="nbVehicles">Nombre de véhicules :</label>
+        <input type="number" id="nbVehicles" value="5" min="1" max="50" />
+      </div>
+      <div class="form-group">
+        <label for="minSpeed">Vitesse minimale (km/h) :</label>
+        <input type="number" id="minSpeed" value="30" min="5" max="100" />
+      </div>
+      <div class="form-group">
+        <label for="maxSpeed">Vitesse maximale (km/h) :</label>
+        <input type="number" id="maxSpeed" value="50" min="10" max="130" />
+      </div>
+      <div class="form-group">
+        <label for="minPower">Puissance minimale (CV) :</label>
+        <input type="number" id="minPower" value="75" min="10" max="500" />
+      </div>
+      <div class="form-group">
+        <label for="maxPower">Puissance maximale (CV) :</label>
+        <input type="number" id="maxPower" value="150" min="20" max="1000" />
+      </div>
+      <button id="addVehiclesBtn">Ajouter</button>
+      <button id="closeControlBtn" style="background-color: #ef4444">
+        Annuler
+      </button>
+    </div>
+    <!-- TABLEAU DE SUIVI DES VEHICULES -->
+    <div id="vehicleTable">
+      <h3>Suivi des véhicules</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Lat</th>
+            <th>Lng</th>
+            <th>Vitesse (km/h)</th>
+            <th>Puissance (CV)</th>
+            <th>Étape suivante</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Les lignes seront injectées dynamiquement -->
+        </tbody>
+      </table>
+    </div>
+    <!-- SCENE 3D -->
+    <!-- <a-scene
+      environment="preset: contact; dressing: none; ground: flat; fog: 0.7; skyType: color; skyColor: #87CEEB"
+    >
+      <a-camera
+        look-controls="enabled: false"
+        orbit-controls="target: 0 0 0; minDistance: 2; maxDistance: 180; initialPosition: 0 10 -20; rotateSpeed: 0.5; maxPolarAngle: 85"
+      >
+      </a-camera>
+    </a-scene> -->
+
+    <a-scene
+  environment="preset: contact; dressing: none; ground: flat; fog: 0.7; skyType: color; skyColor: #87CEEB"
+>
+  <a-camera
+    look-controls="enabled: false"
+    orbit-controls="target: 0 0 0; minDistance: 2; maxDistance: 300; initialPosition: 0 25 -70; rotateSpeed: 0.5; maxPolarAngle: 85"
+  >
+  </a-camera>
+</a-scene>
+
+    <!-- SCRIPT JS pour le contrôle des véhicules -->
+    <script>
+      const vehicles = [];
+      function addVehicles() {
+        const nb = parseInt(document.getElementById('nbVehicles').value, 10);
+        const vmin = parseInt(document.getElementById('minSpeed').value, 10);
+        const vmax = parseInt(document.getElementById('maxSpeed').value, 10);
+        const pmin = parseInt(document.getElementById('minPower').value, 10);
+        const pmax = parseInt(document.getElementById('maxPower').value, 10);
+
+        vehicles.length = 0;
+        for (let i = 0; i < nb; i++) {
+          const speed = Math.floor(Math.random() * (vmax - vmin + 1)) + vmin;
+          const power = Math.floor(Math.random() * (pmax - pmin + 1)) + pmin;
+          vehicles.push({
+            id: i + 1,
+            lat: 0,
+            lng: 0,
+            speed,
+            power,
+            nextStep: '',
+          });
+        }
+        updateVehicleTable();
+      }
+
+      function updateVehicleTable() {
+        const tbody = document.querySelector('#vehicleTable tbody');
+        tbody.innerHTML = '';
+        vehicles.forEach(v => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${v.id}</td>
+            <td>${v.lat.toFixed(6)}</td>
+            <td>${v.lng.toFixed(6)}</td>
+            <td>${v.speed}</td>
+            <td>${v.power}</td>
+            <td>${v.nextStep || '-'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('addVehiclesBtn').onclick = addVehicles;
+      document.getElementById('closeControlBtn').onclick = () => {
+        document.getElementById('controlPanel').style.display = 'none';
+      };
+    </script>
+  </body>
+</html>
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Carte 3D OSM + A-Frame</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
+    <script src="https://unpkg.com/aframe-orbit-controls@1.3.2/dist/aframe-orbit-controls.min.js"></script>
+    <script defer src="src/geom.mjs"></script>
+    <script type="module" src="src/script.mjs"></script>
+    <style>
+      html,
+      body {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      a-scene {
+        width: 100vw;
+        height: 100vh;
+      }
     </style>
   </head>
   <body>
@@ -34,4 +237,4 @@
       </a-camera>
     </a-scene>
   </body>
-</html>
+</html> -->
